@@ -1,0 +1,47 @@
+---
+
+- step:
+    name: run-check-with-miniconda
+    description: Run a simple Python script in an Anaconda-based environment.
+    image: continuumio/miniconda3:4.7.12
+    command:
+      - conda env create -q -n conda-example -f environment.yaml
+      - conda run -n conda-example python --version
+      - conda run -n conda-example python check.py
+
+- step:
+    name: run-check-with-anaconda
+    description: Run a simple Python script in a Miniconda-based environment.
+    image: continuumio/anaconda3:2019.10
+    command:
+      - conda env create -q -n conda-example -f environment.yaml
+      - conda run -n conda-example python --version
+      - conda run -n conda-example python check.py
+
+- step:
+    name: run-check-with-miniconda-and-gpu
+    description: Run a Python script in a GPU-enabled Miniconda-based environment.
+    # main thing to notice here is that we are using nvidia/cuda based image so GPUs are available
+    image: nvidia/cuda:10.0-base-ubuntu18.04
+    command:
+      # in an established project, you would build a custom Docker image based on
+      # the image mentioned above but this works as a starting point
+      # install Miniconda: https://docs.conda.io/projects/conda/en/latest/user-guide/install/rpm-debian.html
+      - apt update -qqq
+      - apt install -qqq -y curl
+      - curl https://repo.anaconda.com/pkgs/misc/gpgkeys/anaconda.asc | gpg --dearmor > conda.gpg
+      - install -o root -g root -m 644 conda.gpg /usr/share/keyrings/conda-archive-keyring.gpg
+      - gpg --keyring /usr/share/keyrings/conda-archive-keyring.gpg --no-default-keyring --fingerprint 34161F5BF5EB1D4BFBBB8F0A8AEB4F8B29D82806
+      - echo "deb [arch=amd64 signed-by=/usr/share/keyrings/conda-archive-keyring.gpg] https://repo.anaconda.com/pkgs/misc/debrepo/conda stable main" > /etc/apt/sources.list.d/conda.list
+      - apt-get update -qqq
+      - apt-get install -qqq -y conda
+      - source /opt/conda/etc/profile.d/conda.sh
+      # then we can finally run our actual code
+      - conda env create -q -n conda-example -f environment.yaml
+      - conda run -n conda-example python --version
+      - conda run -n conda-example python check.py
+      # we'll also install TensorFlow through conda to check if it could access the GPU
+      # the TF package is quite large so I would definitely do this separately in the Docker image building
+      - conda install -q -y -n conda-example tensorflow-gpu
+      - conda run -n conda-example python -c 'import tensorflow as tf; print("TensorFlow GPU:", tf.test.is_gpu_available())'
+      - nvidia-smi
